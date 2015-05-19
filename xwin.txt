@@ -1,0 +1,305 @@
+http://www.x.org/releases/individual/font/font-util-1.3.1.tar.bz2
+http://www.x.org/releases/individual/lib/libX11-1.6.3.tar.bz2
+http://www.x.org/releases/individual/lib/libXau-1.0.8.tar.bz2
+http://www.x.org/releases/individual/lib/libXdamage-1.1.4.tar.bz2
+http://www.x.org/releases/individual/lib/libXdmcp-1.1.2.tar.bz2
+http://www.x.org/releases/individual/lib/libXext-1.3.3.tar.bz2
+http://www.x.org/releases/individual/lib/libXfixes-5.0.1.tar.bz2
+http://www.x.org/releases/individual/lib/libXxf86vm-1.1.4.tar.bz2
+http://www.x.org/releases/individual/lib/pixman-0.32.6.tar.bz2
+http://www.x.org/releases/individual/lib/xtrans-1.3.5.tar.bz2
+http://www.x.org/releases/individual/proto/damageproto-1.2.1.tar.bz2
+http://www.x.org/releases/individual/proto/dri2proto-2.8.tar.bz2
+http://www.x.org/releases/individual/proto/dri3proto-1.0.tar.bz2
+http://www.x.org/releases/individual/proto/fixesproto-5.0.tar.bz2
+http://www.x.org/releases/individual/proto/glproto-1.4.17.tar.bz2
+http://www.x.org/releases/individual/proto/kbproto-1.0.7.tar.bz2
+http://www.x.org/releases/individual/proto/inputproto-2.3.1.tar.bz2
+http://www.x.org/releases/individual/proto/xf86bigfontproto-1.2.0.tar.bz2
+http://www.x.org/releases/individual/proto/xf86vidmodeproto-2.3.1.tar.bz2
+http://www.x.org/releases/individual/proto/xproto-7.0.27.tar.bz2
+http://www.x.org/releases/individual/proto/xextproto-7.3.0.tar.bz2
+http://www.x.org/releases/individual/util/util-macros-1.19.0.tar.bz2
+http://www.x.org/releases/individual/xcb/libpthread-stubs-0.3.tar.bz2
+http://www.x.org/releases/individual/xcb/libxcb-1.11.tar.bz2
+http://www.x.org/releases/individual/xcb/xcb-proto-1.11.tar.bz2
+http://www.x.org/releases/individual/xserver/xorg-server-1.17.1.tar.bz2
+http://sourceforge.net/projects/libpng/files/zlib/1.2.8/zlib-1.2.8.tar.xz
+ftp://ftp.simplesystems.org/pub/libpng/png/src/libpng16/libpng-1.6.17.tar.xz
+ftp://ftp.freedesktop.org/pub/mesa/10.5.5/mesa-10.5.5.tar.xz
+http://sourceforge.net/projects/expat/files/expat/2.1.0/expat-2.1.0.tar.gz
+
+http://www.x.org/releases/individual/proto/xcmiscproto-1.2.2.tar.bz2
+http://www.x.org/releases/individual/proto/bigreqsproto-1.1.2.tar.bz2
+http://www.x.org/releases/individual/proto/randrproto-1.5.0.tar.bz2
+http://www.x.org/releases/individual/proto/renderproto-0.11.1.tar.bz2
+http://www.x.org/releases/individual/proto/fontsproto-2.1.3.tar.bz2
+http://www.x.org/releases/individual/proto/compositeproto-0.4.2.tar.bz2
+http://www.x.org/releases/individual/proto/recordproto-1.14.2.tar.bz2
+http://www.x.org/releases/individual/proto/scrnsaverproto-1.2.2.tar.bz2
+http://www.x.org/releases/individual/proto/resourceproto-1.2.0.tar.bz2
+http://www.x.org/releases/individual/proto/presentproto-1.0.tar.bz2
+http://www.x.org/releases/individual/proto/xineramaproto-1.2.1.tar.bz2
+http://www.x.org/releases/individual/lib/libXfont-1.5.1.tar.bz2
+http://www.x.org/releases/individual/lib/libxkbfile-1.0.9.tar.bz2
+http://download.savannah.gnu.org/releases/freetype/freetype-2.5.5.tar.bz2
+http://www.x.org/releases/individual/lib/libfontenc-1.1.3.tar.bz2
+
+
+PREFIX=/opt/xorg
+HOST=i686-w64-mingw32
+export PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig:$PREFIX/share/pkgconfig
+# pour i686-w64-mingw32-pkgconfig
+export PKG_CONFIG_PATH_CUSTOM=$PREFIX/lib/pkgconfig:$PREFIX/share/pkgconfig
+MAKEOPTS=-j4
+
+
+for d in \
+  util-macros-1.19.0 \
+  xproto-7.0.27 \
+  dri2proto-2.8 \
+  dri3proto-1.0 \
+  xextproto-7.3.0 \
+  kbproto-1.0.7 \
+  inputproto-2.3.1 \
+  xcb-proto-1.11 \
+  xf86bigfontproto-1.2.0 \
+  glproto-1.4.17 \
+  damageproto-1.2.1 \
+  fixesproto-5.0 \
+  xf86vidmodeproto-2.3.1 \
+  xcmiscproto-1.2.2 \
+  bigreqsproto-1.1.2 \
+  randrproto-1.5.0 \
+  renderproto-0.11.1 \
+  fontsproto-2.1.3 \
+  compositeproto-0.4.2 \
+  recordproto-1.14.2 \
+  scrnsaverproto-1.2.2 \
+  resourceproto-1.2.0 \
+  presentproto-1.0 \
+  xineramaproto-1.2.1 \
+
+do
+  rm -rf $d
+  tar xvf $d.tar.bz2
+  cd $d
+  ./configure --host=$HOST --prefix=$PREFIX
+  make $MAKEOPTS
+  make install
+  cd ..
+done
+
+rm -rf zlib-1.2.8
+tar xvf zlib-1.2.8.tar.xz
+cd zlib-1.2.8
+cp contrib/asm686/match.S ./match.S
+make LOC=-DASMV OBJA=match.o PREFIX=${HOST}- -fwin32/Makefile.gcc
+[ "$(uname)" != 'Linux' ] && make test testdll -fwin32/Makefile.gcc
+BINARY_PATH=$PREFIX/bin LIBRARY_PATH=$PREFIX/lib INCLUDE_PATH=$PREFIX/include \
+make install -fwin32/Makefile.gcc SHARED_MODE=1
+cd ..
+
+rm -rf libpng-1.6.17
+tar xvf libpng-1.6.17.tar.xz
+cd libpng-1.6.17
+./configure --host=$HOST --prefix=$PREFIX --disable-static CPPFLAGS=-I$PREFIX/include LDFLAGS=-L$PREFIX/lib
+make $MAKEOPTS
+[ "$(uname)" != 'Linux' ] && make check
+make install
+cd ..
+
+rm -rf pixman-0.32.6
+tar xvf pixman-0.32.6.tar.bz2
+cd pixman-0.32.6
+./configure --host=$HOST --prefix=$PREFIX --disable-static
+make $MAKEOPTS
+[ "$(uname)" != 'Linux' ] && make check
+make install
+cd ..
+
+rm -rf font-util-1.3.1
+tar xvf font-util-1.3.1.tar.bz2
+cd font-util-1.3.1
+./configure --host=$HOST --prefix=$PREFIX
+make $MAKEOPTS
+make install
+cd ..
+
+rm -rf libXau-1.0.8
+tar xvf libXau-1.0.8.tar.bz2
+cd libXau-1.0.8
+./configure --host=$HOST --prefix=$PREFIX --disable-static
+make $MAKEOPTS
+make install
+cd ..
+
+# libXdmcp désactivé ici car entraine des problèmes (à résoudre) avec libxcb
+# met intégré après pour le serveur XWin :/
+
+rm -rf xtrans-1.3.5
+tar xvf xtrans-1.3.5.tar.bz2
+cd xtrans-1.3.5
+./configure --host=$HOST --prefix=$PREFIX --disable-docs
+make $MAKEOPTS
+make install
+cd ..
+
+rm -rf libpthread-stubs-0.3
+tar xvf libpthread-stubs-0.3.tar.bz2
+cd libpthread-stubs-0.3
+./configure --host=$HOST --prefix=$PREFIX LIBS=-pthread
+make $MAKEOPTS
+make install
+cd ..
+
+rm -rf libxcb-1.11
+tar xvf libxcb-1.11.tar.bz2
+cd libxcb-1.11
+./configure --host=$HOST --prefix=$PREFIX --disable-static \
+  --disable-devel-docs \
+  --enable-dri3 --enable-xinput \
+  LIBS="-pthread -lws2_32"
+make $MAKEOPTS
+make install
+cd ..
+
+rm -rf libX11-1.6.3
+tar xvf libX11-1.6.3.tar.bz2
+cd libX11-1.6.3
+# le préprocesseur n'aime pas l'entrée standard par défaut, on force sa valeur
+[ "$(uname)" != 'Linux' ] && sed -i '/^test -n "\$RAWCPP\"/a\RAWCPP="${CPP} -"' configure
+# --enable-malloc0returnsnull nécessaire en cross compilation
+# --enable-ipv6 pose quelques soucis, à activer plus tard
+./configure --host=$HOST --prefix=$PREFIX --disable-static \
+  --enable-tcp-transport $([ "$(uname)" = 'Linux' ] && echo "--enable-malloc0returnsnull")
+# créer makekeys...
+# ...sans ws2_32
+sed -i '/^LIBS =/s/-lws2_32//' src/util/Makefile
+# ...et utiliser la version host sous Linux
+[ "$(uname)" = 'Linux' ] && sed -i '/> ks_tables_h/s,makekeys,.libs/makekeys.exe,' src/Makefile
+# ...et le lancer avec les chemins Windows sous Cygwin
+[ "$(uname -o)" = 'Cygwin' ] && make -C src/util && ./src/util/makekeys.exe $(sed -n '/^KEYSYMDEFS/s/.*=//p' src/Makefile | while read file; do echo $(cygpath -w $file); done) > src/ks_tables.h
+make $MAKEOPTS
+make install
+cd ..
+
+rm -rf libXext-1.3.3
+tar xvf libXext-1.3.3.tar.bz2
+cd libXext-1.3.3
+./configure --host=$HOST --prefix=$PREFIX --disable-static \
+  $([ "$(uname)" = 'Linux' ] && echo "--enable-malloc0returnsnull")
+make $MAKEOPTS
+make install
+cd ..
+
+rm -rf libXfixes-5.0.1
+tar xvf libXfixes-5.0.1.tar.bz2
+cd libXfixes-5.0.1
+./configure --host=$HOST --prefix=$PREFIX --disable-static
+make $MAKEOPTS
+make install
+cd ..
+
+rm -rf libXdamage-1.1.4
+tar xvf libXdamage-1.1.4.tar.bz2
+cd libXdamage-1.1.4
+./configure --host=$HOST --prefix=$PREFIX
+make $MAKEOPTS
+make install
+cd ..
+
+rm -rf libXxf86vm-1.1.4
+tar xvf libXxf86vm-1.1.4.tar.bz2
+cd libXxf86vm-1.1.4
+./configure --host=$HOST --prefix=$PREFIX --disable-static \
+  $([ "$(uname)" = 'Linux' ] && echo "--enable-malloc0returnsnull")
+make $MAKEOPTS
+make install
+cd ..
+
+# expat (pour DRI)
+#rm -rf expat-2.1.0
+#tar xvf expat-2.1.0.tar.gz
+#cd expat-2.1.0
+#./configure --host=$HOST --prefix=$PREFIX --disable-static
+#make $MAKEOPTS
+#make install
+#cd ..
+
+# beaucoup d'options désactivées
+rm -rf mesa-10.5.5
+tar xvf mesa-10.5.5.tar.xz
+cd mesa-10.5.5
+# nécessite mako
+scons build=release platform=windows toolchain=crossmingw machine=x86 libgl-gdi
+
+
+./configure --host=$HOST --prefix=$PREFIX --disable-static \
+  --disable-dri --with-gallium-drivers=swrast --with-dri-driversswrast \
+  --enable-xlib-glx --disable-egl --with-egl-platforms=
+make $MAKEOPTS
+make install
+cd ..
+
+rm -rf freetype-2.5.5
+tar xvf freetype-2.5.5.tar.bz2
+cd freetype-2.5.5
+./configure --host=$HOST --prefix=$PREFIX --disable-static
+make $MAKEOPTS
+make install
+cd ..
+
+rm -rf libfontenc-1.1.3
+tar xvf libfontenc-1.1.3.tar.bz2
+cd libfontenc-1.1.3
+./configure --host=$HOST --prefix=$PREFIX --disable-static \
+  CPPFLAGS=-I$PREFIX/include LDFLAGS=-L$PREFIX/lib
+make $MAKEOPTS
+make install
+cd ..
+
+rm -rf libXfont-1.5.1
+tar xvf libXfont-1.5.1.tar.bz2
+cd libXfont-1.5.1
+# --enable-ipv6
+./configure --host=$HOST --prefix=$PREFIX --disable-static \
+  --enable-tcp-transport --disable-devel-docs \
+  CPPFLAGS=-I$PREFIX/include LDFLAGS=-L$PREFIX/lib
+make $MAKEOPTS
+make install
+cd ..
+
+rm -rf libxkbfile-1.0.9
+tar xvf libxkbfile-1.0.9.tar.bz2
+cd libxkbfile-1.0.9
+./configure --host=$HOST --prefix=$PREFIX --disable-static
+make $MAKEOPTS
+make install
+cd ..
+
+rm -rf libXdmcp-1.1.2
+tar xvf libXdmcp-1.1.2.tar.bz2
+cd libXdmcp-1.1.2
+./configure --host=$HOST --prefix=$PREFIX --disable-static \
+  --disable-docs LIBS=-lws2_32
+make $MAKEOPTS
+make install
+cd ..
+
+rm -rf xorg-server-1.17.1
+tar xvf xorg-server-1.17.1.tar.bz2
+cd xorg-server-1.17.1
+# voir pour mettre --enable-ipv6
+./configure --host=$HOST --prefix=$PREFIX --disable-docs --enable-listen-tcp \
+  --enable-tcp-transport --disable-dri{,2,3} --enable-xwin --disable-glx --enable-aiglx \
+  --disable-{xorg,dmx,xvfb,xnest,xquartz,xwayland,glamor,kdrive,xephyr,xfake,xfbdev}
+# TODO: faire une vraie implémentation
+sed -i '/^os_move_fd/,${
+/^{$/,/^}$/d
+a\
+{ return fd; }
+}' os/utils.c
+make $MAKEOPTS
+make install
+cd ..
