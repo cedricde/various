@@ -54,6 +54,7 @@ export PKG_CONFIG_LIBDIR=/usr/i686-w64-mingw32/lib/pkgconfig
 export PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig:$PREFIX/share/pkgconfig
 # pour i686-w64-mingw32-pkgconfig
 export PKG_CONFIG_PATH_CUSTOM=$PREFIX/lib/pkgconfig:$PREFIX/share/pkgconfig
+[ "$(uname)" != 'Linux' ] && PATH=$PATH:$PREFIX/bin
 MAKEOPTS=-j4
 
 
@@ -166,14 +167,14 @@ rm -rf libX11-1.6.3
 tar xvf libX11-1.6.3.tar.bz2
 cd libX11-1.6.3
 # le préprocesseur n'aime pas l'entrée standard par défaut, on force sa valeur
-[ "$(uname)" != 'Linux' ] && sed -i '/^test -n "\$RAWCPP\"/a\RAWCPP="${CPP} -"' configure
+[ "$(uname -o)" = 'Cygwin' ] && sed -i '/^test -n "\$RAWCPP\"/a\RAWCPP="${CPP} -"' configure
 # --enable-malloc0returnsnull nécessaire en cross compilation
 # TODO: --enable-ipv6
 ./configure --host=$HOST --prefix=$PREFIX --disable-static \
   --enable-tcp-transport $([ "$(uname)" = 'Linux' ] && echo "--enable-malloc0returnsnull")
 # créer makekeys...
-# ...sans ws2_32
-sed -i '/^LIBS =/s/-lws2_32//' src/util/Makefile
+# ...sans ws2_32 sous Linux
+[ "$(uname)" = 'Linux' ] && sed -i '/^LIBS =/s/-lws2_32//' src/util/Makefile
 # ...et utiliser la version host sous Linux
 [ "$(uname)" = 'Linux' ] && sed -i '/> ks_tables_h/s,makekeys,.libs/makekeys.exe,' src/Makefile
 # ...et le lancer avec les chemins Windows sous Cygwin
@@ -263,7 +264,7 @@ ACLOCAL_PATH=$PREFIX/share/aclocal \
 NOCONFIGURE=1 \
 ./autogen.sh
 # le préprocesseur n'aime pas l'entrée standard par défaut, on force sa valeur
-[ "$(uname)" != 'Linux' ] && sed -i '/^test -n "\$RAWCPP\"/a\RAWCPP="${CPP} -"' configure
+[ "$(uname -o)" = 'Cygwin' ] && sed -i '/^test -n "\$RAWCPP\"/a\RAWCPP="${CPP} -"' configure
 # TODO: --enable-ipv6
 ./configure --host=$HOST --prefix=$PREFIX --disable-docs --disable-devel-docs \
   --enable-listen-tcp --enable-tcp-transport \
