@@ -187,7 +187,7 @@ tar xvf freetype-2.5.5.tar.bz2
 cd freetype-2.5.5
 ./configure --host=$HOST --prefix=$PREFIX --disable-static
 # TODO: corriger compilation sous Cygwin
-[ "$(uname -o)" = 'Cygwin' ] && make src/tools/apinames.exe && { src/tools/apinames.exe $(sed -n '/^KEYSYMDEFS/s/.*=//p' src/Makefile | while read file; do echo $(cygpath -w $file); done) > objs/ftexport.sym
+[ "$(uname -o)" = 'Cygwin' ] && make src/tools/apinames.exe && { src/tools/apinames.exe $(sed -n '/^KEYSYMDEFS/s/.*=//p' src/Makefile | while read file; do echo $(cygpath -w $file); done) ; } > objs/ftexport.sym
 make $MAKEOPTS
 make install
 cd ..
