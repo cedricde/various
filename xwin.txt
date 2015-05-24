@@ -1,12 +1,15 @@
 wget -i - <<'EOF'
 http://www.x.org/releases/individual/app/xkbcomp-1.3.0.tar.bz2
-http://www.x.org/releases/individual/data/xkeyboard-config-2.5.1.tar.bz2
+http://www.x.org/releases/individual/data/xkeyboard-config/xkeyboard-config-2.14.tar.bz2
 http://www.x.org/releases/individual/font/font-util-1.3.1.tar.bz2
 http://www.x.org/releases/individual/lib/libX11-1.6.3.tar.bz2
 http://www.x.org/releases/individual/lib/libXau-1.0.8.tar.bz2
+http://www.x.org/releases/individual/lib/libXdamage-1.1.4.tar.bz2
 http://www.x.org/releases/individual/lib/libXdmcp-1.1.2.tar.bz2
+http://www.x.org/releases/individual/lib/libXext-1.3.3.tar.bz2
 http://www.x.org/releases/individual/lib/libXfixes-5.0.1.tar.bz2
 http://www.x.org/releases/individual/lib/libXfont-1.5.1.tar.bz2
+http://www.x.org/releases/individual/lib/libXxf86vm-1.1.4.tar.bz2
 http://www.x.org/releases/individual/lib/libfontenc-1.1.3.tar.bz2
 http://www.x.org/releases/individual/lib/libxkbfile-1.0.9.tar.bz2
 http://www.x.org/releases/individual/lib/pixman-0.32.6.tar.bz2
@@ -16,6 +19,7 @@ http://www.x.org/releases/individual/proto/compositeproto-0.4.2.tar.bz2
 http://www.x.org/releases/individual/proto/damageproto-1.2.1.tar.bz2
 http://www.x.org/releases/individual/proto/fixesproto-5.0.tar.bz2
 http://www.x.org/releases/individual/proto/fontsproto-2.1.3.tar.bz2
+http://www.x.org/releases/individual/proto/glproto-1.4.17.tar.bz2
 http://www.x.org/releases/individual/proto/inputproto-2.3.1.tar.bz2
 http://www.x.org/releases/individual/proto/kbproto-1.0.7.tar.bz2
 http://www.x.org/releases/individual/proto/presentproto-1.0.tar.bz2
@@ -28,6 +32,7 @@ http://www.x.org/releases/individual/proto/windowswmproto-1.0.4.tar.bz2
 http://www.x.org/releases/individual/proto/xcmiscproto-1.2.2.tar.bz2
 http://www.x.org/releases/individual/proto/xextproto-7.3.0.tar.bz2
 http://www.x.org/releases/individual/proto/xf86bigfontproto-1.2.0.tar.bz2
+http://www.x.org/releases/individual/proto/xf86vidmodeproto-2.3.1.tar.bz2
 http://www.x.org/releases/individual/proto/xineramaproto-1.2.1.tar.bz2
 http://www.x.org/releases/individual/proto/xproto-7.0.27.tar.bz2
 http://www.x.org/releases/individual/util/util-macros-1.19.0.tar.bz2
@@ -38,25 +43,78 @@ http://www.x.org/releases/individual/xserver/xorg-server-1.17.1.tar.bz2
 http://sourceforge.net/projects/libpng/files/zlib/1.2.8/zlib-1.2.8.tar.xz
 ftp://ftp.simplesystems.org/pub/libpng/png/src/libpng16/libpng-1.6.17.tar.xz
 http://download.savannah.gnu.org/releases/freetype/freetype-2.5.5.tar.bz2
+ftp://ftp.freedesktop.org/pub/mesa/10.5.6/mesa-10.5.6.tar.xz
+http://sourceforge.net/projects/expat/files/expat/2.1.0/expat-2.1.0.tar.gz
 EOF
+wget https://github.com/dlfcn-win32/dlfcn-win32/archive/v1.0.0.tar.gz -O dlfcn-win32-1.0.0.tar.gz
 
 # Il faut récupérer le serveur X sur le git, il manque des fichiers dans le tar...
 git clone http://anongit.freedesktop.org/git/xorg/xserver.git
 cd xserver
 git archive -o ../xorg-server-git-1.17.1.tar.gz --prefix=xorg-server-1.17.1/ xorg-server-1.17.1
 cd ..
+rm -rf xserver
+
+# Il faut aussi récupérer 2 patches pour gérer les derniers OpenGL registries
+wget 'http://cgit.freedesktop.org/xorg/xserver/patch/?id=5071cb7e0ac5f17c48ed7f3f3b6f242dec802f66' \
+     'http://cgit.freedesktop.org/xorg/xserver/patch/?id=d02f9611c8d3bafca4be17c65efca3c5527f71e2' \
+     -O - > xorg-server-support_new_opengl_registry.patch
+
+# OpenGL registry (révision identique à celle utilisée par Mesa)
+svn export -r 29735 https://cvs.khronos.org/svn/repos/ogl/trunk/doc/registry/public/api/ khronos-opengl-registry
+tar cvjf khronos-opengl-registry.tar.bz2 khronos-opengl-registry
+rm -rf khronos-opengl-registry
 
 
 PREFIX=/opt/xorg
-HOST=i686-w64-mingw32
+if [ "$(uname -o)" = 'Msys' ]; then
+  CROSS_COMPILE=--build=i686-w64-mingw32
+  CROSS_PREFIX=
+else
+  CROSS_COMPILE=--host=i686-w64-mingw32
+  CROSS_PREFIX=i686-w64-mingw32-
+fi
 # pour pkgconfig original
 export PKG_CONFIG_LIBDIR=/usr/i686-w64-mingw32/lib/pkgconfig
 export PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig:$PREFIX/share/pkgconfig
 # pour i686-w64-mingw32-pkgconfig
 export PKG_CONFIG_PATH_CUSTOM=$PREFIX/lib/pkgconfig:$PREFIX/share/pkgconfig
-[ "$(uname)" != 'Linux' ] && PATH=$PATH:$PREFIX/bin
+[ "$(uname)" != 'Linux' ] && PATH=$PREFIX/bin:$PATH
+export ACLOCAL_PATH=$PREFIX/share/aclocal
 MAKEOPTS=-j4
 
+export CPPFLAGS="-D__USE_MINGW_ANSI_STDIO -I$PREFIX/include"
+export LDFLAGS="-L$PREFIX/lib"
+
+
+rm -rf dlfcn-win32-1.0.0
+tar xvf dlfcn-win32-1.0.0.tar.gz
+cd dlfcn-win32-1.0.0
+./configure --cross-prefix=$CROSS_PREFIX --prefix=$PREFIX --disable-static --enable-shared
+make $MAKEOPTS
+# le programme de test retourne 3 au lieu de 0
+[ "$(uname)" != 'Linux' ] && PATH=.:$PATH make test
+make install
+cd ..
+
+rm -rf zlib-1.2.8
+tar xvf zlib-1.2.8.tar.xz
+cd zlib-1.2.8
+cp contrib/asm686/match.S ./match.S
+make LOC=-DASMV OBJA=match.o PREFIX=$CROSS_PREFIX -fwin32/Makefile.gcc
+[ "$(uname)" != 'Linux' ] && make test testdll -fwin32/Makefile.gcc
+BINARY_PATH=$PREFIX/bin LIBRARY_PATH=$PREFIX/lib INCLUDE_PATH=$PREFIX/include \
+make install -fwin32/Makefile.gcc SHARED_MODE=1
+cd ..
+
+rm -rf libpng-1.6.17
+tar xvf libpng-1.6.17.tar.xz
+cd libpng-1.6.17
+./configure $CROSS_COMPILE --prefix=$PREFIX --disable-static
+make $MAKEOPTS
+[ "$(uname)" != 'Linux' ] && make check
+make install
+cd ..
 
 for d in \
   util-macros-1.19.0 \
@@ -65,6 +123,7 @@ for d in \
   damageproto-1.2.1 \
   fixesproto-5.0 \
   fontsproto-2.1.3 \
+  glproto-1.4.17 \
   inputproto-2.3.1 \
   kbproto-1.0.7 \
   presentproto-1.0 \
@@ -78,6 +137,7 @@ for d in \
   xcmiscproto-1.2.2 \
   xextproto-7.3.0 \
   xf86bigfontproto-1.2.0 \
+  xf86vidmodeproto-2.3.1 \
   xineramaproto-1.2.1 \
   xproto-7.0.27 \
 
@@ -85,35 +145,16 @@ do
   rm -rf $d
   tar xvf $d.tar.bz2
   cd $d
-  ./configure --host=$HOST --prefix=$PREFIX
+  ./configure $CROSS_COMPILE --prefix=$PREFIX
   make $MAKEOPTS
   make install
   cd ..
 done
 
-rm -rf zlib-1.2.8
-tar xvf zlib-1.2.8.tar.xz
-cd zlib-1.2.8
-cp contrib/asm686/match.S ./match.S
-make LOC=-DASMV OBJA=match.o PREFIX=${HOST}- -fwin32/Makefile.gcc
-[ "$(uname)" != 'Linux' ] && make test testdll -fwin32/Makefile.gcc
-BINARY_PATH=$PREFIX/bin LIBRARY_PATH=$PREFIX/lib INCLUDE_PATH=$PREFIX/include \
-make install -fwin32/Makefile.gcc SHARED_MODE=1
-cd ..
-
-rm -rf libpng-1.6.17
-tar xvf libpng-1.6.17.tar.xz
-cd libpng-1.6.17
-./configure --host=$HOST --prefix=$PREFIX --disable-static CPPFLAGS=-I$PREFIX/include LDFLAGS=-L$PREFIX/lib
-make $MAKEOPTS
-[ "$(uname)" != 'Linux' ] && make check
-make install
-cd ..
-
 rm -rf pixman-0.32.6
 tar xvf pixman-0.32.6.tar.bz2
 cd pixman-0.32.6
-./configure --host=$HOST --prefix=$PREFIX --disable-static
+./configure $CROSS_COMPILE --prefix=$PREFIX --disable-static
 make $MAKEOPTS
 [ "$(uname)" != 'Linux' ] && make check
 make install
@@ -122,7 +163,7 @@ cd ..
 rm -rf font-util-1.3.1
 tar xvf font-util-1.3.1.tar.bz2
 cd font-util-1.3.1
-./configure --host=$HOST --prefix=$PREFIX
+./configure $CROSS_COMPILE --prefix=$PREFIX
 make $MAKEOPTS
 make install
 cd ..
@@ -130,35 +171,48 @@ cd ..
 rm -rf libXau-1.0.8
 tar xvf libXau-1.0.8.tar.bz2
 cd libXau-1.0.8
-./configure --host=$HOST --prefix=$PREFIX --disable-static
+./configure $CROSS_COMPILE --prefix=$PREFIX --disable-static
 make $MAKEOPTS
+[ "$(uname)" != 'Linux' ] && make check
 make install
 cd ..
 
 rm -rf xtrans-1.3.5
 tar xvf xtrans-1.3.5.tar.bz2
 cd xtrans-1.3.5
-./configure --host=$HOST --prefix=$PREFIX --disable-docs
+./configure $CROSS_COMPILE --prefix=$PREFIX --disable-docs
 make $MAKEOPTS
+make install
+cd ..
+
+rm -rf libXdmcp-1.1.2
+tar xvf libXdmcp-1.1.2.tar.bz2
+cd libXdmcp-1.1.2
+./configure $CROSS_COMPILE --prefix=$PREFIX --disable-static \
+  --disable-docs LIBS=-lws2_32
+make $MAKEOPTS
+[ "$(uname)" != 'Linux' ] && make check
 make install
 cd ..
 
 rm -rf libpthread-stubs-0.3
 tar xvf libpthread-stubs-0.3.tar.bz2
 cd libpthread-stubs-0.3
-./configure --host=$HOST --prefix=$PREFIX LIBS=-pthread
+./configure $CROSS_COMPILE --prefix=$PREFIX LIBS=-pthread
 make $MAKEOPTS
 make install
 cd ..
 
-# TODO inclure XDMCP avant libxcb
-
 rm -rf libxcb-1.11
 tar xvf libxcb-1.11.tar.bz2
 cd libxcb-1.11
-./configure --host=$HOST --prefix=$PREFIX --disable-static \
+./configure $CROSS_COMPILE --prefix=$PREFIX --disable-static \
   --disable-devel-docs LIBS="-pthread -lws2_32"
+# c'est mieux d'inclure time.h pour utiliser time()...
+sed -i '/^#include <stdlib\.h>/a\
+#include <time.h>' src/xcb_auth.c
 make $MAKEOPTS
+[ "$(uname)" != 'Linux' ] && make check
 make install
 cd ..
 
@@ -170,7 +224,7 @@ cd libX11-1.6.3
 [ "$(uname -o)" = 'Cygwin' ] && sed -i '/^test -n "\$RAWCPP\"/a\RAWCPP="${CPP} -"' configure
 # --enable-malloc0returnsnull nécessaire en cross compilation
 # TODO: --enable-ipv6
-./configure --host=$HOST --prefix=$PREFIX --disable-static \
+./configure $CROSS_COMPILE --prefix=$PREFIX --disable-static \
   --enable-tcp-transport $([ "$(uname)" = 'Linux' ] && echo "--enable-malloc0returnsnull")
 # créer makekeys...
 # ...sans ws2_32 sous Linux
@@ -180,13 +234,14 @@ cd libX11-1.6.3
 # ...et le lancer avec les chemins Windows sous Cygwin
 [ "$(uname -o)" = 'Cygwin' ] && make -C src/util && ./src/util/makekeys.exe $(sed -n '/^KEYSYMDEFS/s/.*=//p' src/Makefile | while read file; do echo $(cygpath -w $file); done) > src/ks_tables.h
 make $MAKEOPTS
+[ "$(uname)" != 'Linux' ] && make check
 make install
 cd ..
 
 rm -rf freetype-2.5.5
 tar xvf freetype-2.5.5.tar.bz2
 cd freetype-2.5.5
-./configure --host=$HOST --prefix=$PREFIX --disable-static
+./configure $CROSS_COMPILE --prefix=$PREFIX --disable-static
 # TODO: corriger compilation sous Cygwin
 [ "$(uname -o)" = 'Cygwin' ] && make src/tools/apinames.exe && { src/tools/apinames.exe $(sed -n '/^KEYSYMDEFS/s/.*=//p' src/Makefile | while read file; do echo $(cygpath -w $file); done) ; } > objs/ftexport.sym
 make $MAKEOPTS
@@ -196,8 +251,7 @@ cd ..
 rm -rf libfontenc-1.1.3
 tar xvf libfontenc-1.1.3.tar.bz2
 cd libfontenc-1.1.3
-./configure --host=$HOST --prefix=$PREFIX --disable-static \
-  CPPFLAGS=-I$PREFIX/include LDFLAGS=-L$PREFIX/lib
+./configure $CROSS_COMPILE --prefix=$PREFIX --disable-static
 make $MAKEOPTS
 make install
 cd ..
@@ -206,9 +260,8 @@ rm -rf libXfont-1.5.1
 tar xvf libXfont-1.5.1.tar.bz2
 cd libXfont-1.5.1
 # TODO: --enable-ipv6
-./configure --host=$HOST --prefix=$PREFIX --disable-static \
-  --enable-tcp-transport --disable-devel-docs \
-  CPPFLAGS=-I$PREFIX/include LDFLAGS=-L$PREFIX/lib
+./configure $CROSS_COMPILE --prefix=$PREFIX --disable-static \
+  --enable-tcp-transport --disable-devel-docs
 make $MAKEOPTS
 make install
 cd ..
@@ -216,16 +269,7 @@ cd ..
 rm -rf libxkbfile-1.0.9
 tar xvf libxkbfile-1.0.9.tar.bz2
 cd libxkbfile-1.0.9
-./configure --host=$HOST --prefix=$PREFIX --disable-static
-make $MAKEOPTS
-make install
-cd ..
-
-rm -rf libXdmcp-1.1.2
-tar xvf libXdmcp-1.1.2.tar.bz2
-cd libXdmcp-1.1.2
-./configure --host=$HOST --prefix=$PREFIX --disable-static \
-  --disable-docs LIBS=-lws2_32
+./configure $CROSS_COMPILE --prefix=$PREFIX --disable-static
 make $MAKEOPTS
 make install
 cd ..
@@ -233,7 +277,7 @@ cd ..
 rm -rf libXfixes-5.0.1
 tar xvf libXfixes-5.0.1.tar.bz2
 cd libXfixes-5.0.1
-./configure --host=$HOST --prefix=$PREFIX --disable-static
+./configure $CROSS_COMPILE --prefix=$PREFIX --disable-static
 make $MAKEOPTS
 make install
 cd ..
@@ -241,7 +285,7 @@ cd ..
 rm -rf xkbcomp-1.3.0
 tar xvf xkbcomp-1.3.0.tar.bz2
 cd xkbcomp-1.3.0
-./configure --host=$HOST --prefix=$PREFIX
+./configure $CROSS_COMPILE --prefix=$PREFIX
 # workaround d'un problème que je n'arrive pas à cerner
 sed -i 's/\bTypeString\b/&1/' $(fgrep -wrl TypeString .)
 make $MAKEOPTS
@@ -249,28 +293,273 @@ make install
 cd ..
 
 # requiert xkbcomp et intltool de l'hôte
-rm -rf xkeyboard-config-2.5.1
-tar xvf xkeyboard-config-2.5.1.tar.bz2
-cd xkeyboard-config-2.5.1
-./configure --host=$HOST --prefix=$PREFIX
+rm -rf xkeyboard-config-2.14
+tar xvf xkeyboard-config-2.14.tar.bz2
+cd xkeyboard-config-2.14
+./configure $CROSS_COMPILE --prefix=$PREFIX
 make $MAKEOPTS
 make install
 cd ..
 
+# (peut-être) utilisé par Mesa
+rm -rf libXext-1.3.3
+tar xvf libXext-1.3.3.tar.bz2
+cd libXext-1.3.3
+./configure $CROSS_COMPILE --prefix=$PREFIX --disable-static \
+   $([ "$(uname)" = 'Linux' ] && echo "--enable-malloc0returnsnull")
+make $MAKEOPTS
+make install
+cd ..
+
+# (peut-être) utilisé par Mesa
+rm -rf libXdamage-1.1.4
+tar xvf libXdamage-1.1.4.tar.bz2
+cd libXdamage-1.1.4
+./configure $CROSS_COMPILE --prefix=$PREFIX --disable-static
+make $MAKEOPTS
+make install
+cd ..
+
+# (peut-être) utilisé par Mesa
+rm -rf libXxf86vm-1.1.4
+tar xvf libXxf86vm-1.1.4.tar.bz2
+cd libXxf86vm-1.1.4
+./configure $CROSS_COMPILE --prefix=$PREFIX --disable-static \
+   $([ "$(uname)" = 'Linux' ] && echo "--enable-malloc0returnsnull")
+make $MAKEOPTS
+make install
+cd ..
+
+
+if false; then
+
+# requis par Mesa DRI based
+rm -rf expat-2.1.0
+tar xvf expat-2.1.0.tar.gz
+cd expat-2.1.0
+./configure $CROSS_COMPILE --prefix=$PREFIX --disable-static
+make $MAKEOPTS
+make install
+cd ..
+
+rm -rf mesa-10.5.6
+tar xvf mesa-10.5.6.tar.xz
+cd mesa-10.5.6
+
+# TODO à garder?
+sed -i 's/defined(__CYGWIN__)/(& || defined(__MINGW32__))/' \
+  include/GL/{glext.h,wglext.h,glcorearb.h}
+patch include/GL/gl.h <<'EOF'
+diff -Nru a/include/GL/gl.h b/include/GL/gl.h
+--- a/include/GL/gl.h   2014-09-12 21:30:32.000000000 +0000
++++ b/include/GL/gl.h   2015-05-24 07:56:42.286086613 +0000
+@@ -48,7 +48,7 @@
+ #  else /* for use with static link lib build of Win32 edition only */
+ #    define GLAPI extern
+ #  endif /* _STATIC_MESA support */
+-#  if defined(__MINGW32__) && defined(GL_NO_STDCALL) || defined(UNDER_CE)  /* The generated DLLs by MingW with STDCALL are not compatible with the ones done by Microsoft's compilers */
++#  if defined(__MINGW32__) && defined(GL_NO_STDCALL) && !defined(USE_OPENGL32) || defined(UNDER_CE)  /* The generated DLLs by MingW with STDCALL are not compatible with the ones done by Microsoft's compilers */
+ #    define GLAPIENTRY 
+ #  else
+ #    define GLAPIENTRY __stdcall
+@@ -69,7 +69,7 @@
+  * than "WIN32_LEAN_AND_MEAN" may include windows.h before
+  * glut.h or gl.h.
+  */
+-#if defined(_WIN32) && !defined(APIENTRY) && !defined(__CYGWIN__)
++#if defined(_WIN32) && !defined(APIENTRY) && !defined(__CYGWIN__) && !defined(__MINGW32__)
+ #ifndef WIN32_LEAN_AND_MEAN
+ #define WIN32_LEAN_AND_MEAN 1
+ #endif
+EOF
+sed -i '/^#if .* defined(__CYGWIN__)/s/$/ || defined(__MINGW32__)/' include/GL/internal/dri_interface.h
+
+
+# Génération swrast_dri.so
+# TODO: patch des entête comme au dessus
+# implémentation de strndup
+sed -i '/^#undef GET_PROGRAM_NAME/a\
+static char *strndup(const char *s, size_t n) { \
+    size_t len = strlen(s); \
+    if (n < len) len = n; \
+    char *res = malloc(len + 1); \
+    if (res != NULL) { \
+        memcpy(res, s, len); \
+        res[len] = '\0'; \
+    } \
+    return res; \
+}' src/mesa/drivers/dri/common/xmlconfig.c
+
+patch src/mesa/drivers/dri/swrast/swrast.c <<'EOF'
+--- src/mesa/drivers/dri/swrast/swrast.c        2015-05-21 12:28:41.000000000 +0000
++++ src/mesa/drivers/dri/swrast/swrast.c.new    2015-05-24 12:24:19.126622546 +0000
+@@ -65,6 +65,8 @@
+ # include <sys/sysctl.h>
+ #endif
+ 
++#include <windows.h>
++
+ const __DRIextension **__driDriverGetExtensions_swrast(void);
+ 
+ const char * const swrast_vendor_string = "Mesa Project";
+@@ -160,6 +162,14 @@
+ 
+       const uint64_t system_memory_bytes = (uint64_t) system_memory_pages
+          * (uint64_t) system_page_size;
++#elif defined(_WIN32)
++      MEMORYSTATUSEX statex;
++
++      statex.dwLength = sizeof(statex);
++      if (!GlobalMemoryStatusEx(&statex))
++         return -1;
++
++      const uint64_t system_memory_bytes = statex.ullTotalPhys;
+ #else
+ #error "Unsupported platform"
+ #endif
+EOF
+
+# détecter les pthreads même sur Mingw
+sed -i '/^dnl Check for pthreads/,/^\*)/s/mingw/invalid_&/' configure.ac
+NOCONFIGURE=1 \
+./autogen.sh
+
+#TODO réactiver assembleur
+# GLX: Xlib based without Gallium
+./configure $CROSS_COMPILE --prefix=$PREFIX --disable-static \
+  --disable-{gles1,gles2,openvg,dri3,osmesa,gallium-osmesa,egl,xa,gbm,nine,xvmc,vdpau,omx,va,opencl} \
+  --enable-opengl --enable-glx --enable-xlib-glx --disable-dri \
+  --disable-shared-glapi --with-gallium-drivers= --disable-asm
+
+# GLX: Xlib based with Gallium
+./configure $CROSS_COMPILE --prefix=$PREFIX --disable-static \
+  --disable-{gles1,gles2,openvg,dri3,osmesa,gallium-osmesa,egl,xa,gbm,nine,xvmc,vdpau,omx,va,opencl} \
+  --enable-opengl --enable-glx --enable-xlib-glx --disable-dri \
+  --disable-shared-glapi --with-gallium-drivers=swrast --disable-asm
+
+# GLX: DRI based without Gallium
+./configure $CROSS_COMPILE --prefix=$PREFIX --disable-static \
+  --disable-{gles1,gles2,openvg,dri3,osmesa,gallium-osmesa,egl,xa,gbm,nine,xvmc,vdpau,omx,va,opencl} \
+  --enable-opengl --enable-glx --disable-xlib-glx --enable-dri --with-dri-drivers=swrast \
+  --disable-shared-glapi --with-gallium-drivers= --disable-asm
+
+# GLX: DRI based with Gallium
+./configure $CROSS_COMPILE --prefix=$PREFIX --disable-static \
+  --disable-{gles1,gles2,openvg,dri3,osmesa,gallium-osmesa,egl,xa,gbm,nine,xvmc,vdpau,omx,va,opencl} \
+  --enable-opengl --enable-glx --disable-xlib-glx --enable-dri --with-dri-drivers=swrast \
+  --disable-shared-glapi --with-gallium-drivers=swrast --disable-asm
+--with-egl-platforms=
+--disable-driglx-direct
+--enable-glx-tls
+
+patch libtool <<'EOF'
+--- libtool     2015-05-23 14:37:02.685980519 +0000
++++ libtool.new 2015-05-23 15:14:34.625886277 +0000
+@@ -7022,14 +7022,14 @@
+       # we shouldn't force the makefile maintainer to figure out
+       # what system we are compiling for in order to pass an extra
+       # flag for every libtool invocation.
+-      # allow_undefined=no
++      allow_undefined=no
+ 
+       # FIXME: Unfortunately, there are problems with the above when trying
+       # to make a dll that has undefined symbols, in which case not
+       # even a static library is built.  For now, we need to specify
+       # -no-undefined on the libtool link line when we can be certain
+       # that all symbols are satisfied, otherwise we get a static library.
+-      allow_undefined=yes
++      # allow_undefined=yes
+       ;;
+     *)
+       allow_undefined=yes
+EOF
+
+# utiliser l'émulation pthread
+sed -i '/^u_thread_self(void)/,/^}/s/#ifdef _WIN32/#if 0/' src/mapi/u_thread.h
+sed -i '/^#if defined(_WIN32)/s/$/ \&\& !defined(__MINGW32__)/' include/c11/threads.h
+
+# inclure l'entête nécessaire à diverses fonctions Windows
+sed -i '/^#include <dlfcn\.h>/a\
+#else \
+#include <windows.h>' src/mapi/glapi/glapi_gentable.c
+sed -i '/^#include "util\/hash_table\.h"/a\#include <windows.h>' src/mesa/main/errors.c
+
+make $MAKEOPTS
+make install
+cd ..
+
+else
+
+
+rm -rf mesa-10.5.6
+tar xvf mesa-10.5.6.tar.xz
+cd mesa-10.5.6
+
+# compilation des versions Gallium et classic de opengl32.dll et osmesa pour Windows (ne compile pas sous Msys)
+scons platform=windows build=release verbose=yes toolchain=crossmingw machine=x86 libgl-gdi mesagdi osmesa
+
+mkdir -p $PREFIX/opengl/{gallium,classic}
+cp -v build/windows-x86/gallium/targets/libgl-gdi/opengl32.dll $PREFIX/opengl/gallium/
+cp -v build/windows-x86/mesa/drivers/windows/gdi/{libopengl32.a,opengl32.dll} $PREFIX/opengl/classic/
+cp -v build/windows-x86/mesa/drivers/osmesa/{libosmesa.a,osmesa.dll} $PREFIX/opengl/
+
+
+sed -i 's/defined(__CYGWIN__)/(& || defined(__MINGW32__))/' \
+  include/GL/{gl.h,glext.h,wglext.h,glcorearb.h,internal/dri_interface.h}
+# la modif ci-dessous (en lieu de place de la précédente, pour gl.h) ne va pas car les en-têtes Mingw définissent
+# _DLL et donc on ne peut plus faire des fonctions statiques, elles sont toujours déclarées dllimport
+#patch include/GL/gl.h <<'EOF'
+#diff -Nru a/include/GL/gl.h b/include/GL/gl.h
+#--- a/include/GL/gl.h   2014-09-12 21:30:32.000000000 +0000
+#+++ b/include/GL/gl.h   2015-05-24 07:56:42.286086613 +0000
+#@@ -48,7 +48,7 @@
+# #  else /* for use with static link lib build of Win32 edition only */
+# #    define GLAPI extern
+# #  endif /* _STATIC_MESA support */
+#-#  if defined(__MINGW32__) && defined(GL_NO_STDCALL) || defined(UNDER_CE)  /* The generated DLLs by MingW with STDCALL are not compatible with the ones done by Microsoft's compilers */
+#+#  if defined(__MINGW32__) && defined(GL_NO_STDCALL) && !defined(USE_OPENGL32) || defined(UNDER_CE)  /* The generated DLLs by MingW with STDCALL are not compatible with the ones done by Microsoft's compilers */
+# #    define GLAPIENTRY 
+# #  else
+# #    define GLAPIENTRY __stdcall
+#@@ -69,7 +69,7 @@
+#  * than "WIN32_LEAN_AND_MEAN" may include windows.h before
+#  * glut.h or gl.h.
+#  */
+#-#if defined(_WIN32) && !defined(APIENTRY) && !defined(__CYGWIN__)
+#+#if defined(_WIN32) && !defined(APIENTRY) && !defined(__CYGWIN__) && !defined(__MINGW32__)
+# #ifndef WIN32_LEAN_AND_MEAN
+# #define WIN32_LEAN_AND_MEAN 1
+# #endif
+#EOF
+
+cp -rv include/GL $PREFIX/include/
+
+cd ..
+
+fi
+
+
+rm -rf khronos-opengl-registry
+tar xjvf khronos-opengl-registry.tar.bz2
+
 rm -rf xorg-server-1.17.1
 tar xvf xorg-server-git-1.17.1.tar.gz
 cd xorg-server-1.17.1
-ACLOCAL_PATH=$PREFIX/share/aclocal \
+patch -p1 -i ../xorg-server-support_new_opengl_registry.patch
 NOCONFIGURE=1 \
 ./autogen.sh
 # le préprocesseur n'aime pas l'entrée standard par défaut, on force sa valeur
 [ "$(uname -o)" = 'Cygwin' ] && sed -i '/^test -n "\$RAWCPP\"/a\RAWCPP="${CPP} -"' configure
 # TODO: --enable-ipv6
-./configure --host=$HOST --prefix=$PREFIX --disable-docs --disable-devel-docs \
+# TODO: voir si xv bien activé
+./configure $CROSS_COMPILE --prefix=$PREFIX --disable-docs --disable-devel-docs \
   --enable-listen-tcp --enable-tcp-transport \
-  --enable-xwin --enable-aiglx --enable-xv --enable-windowswm \
-  --disable-glx \
-  --disable-{xorg,dmx,xvfb,xnest,xquartz,xwayland,glamor,kdrive,xephyr,xfake,xfbdev}
+  --enable-xwin --enable-glx --enable-aiglx --enable-xv --enable-windowswm \
+  --disable-{xorg,dmx,xvfb,xnest,xquartz,xwayland,glamor,kdrive,xephyr,xfake,xfbdev} \
+  --with-khronos-spec-dir=$PWD/../khronos-opengl-registry \
+  GL_CFLAGS=" " GL_LIBS=" "
+# renommage des libs OpenGL
+sed -i -e 's/cygnativeGLthunk.dll/libnativeGLthunk.dll/' -e 's/cygGL-1.dll/libGL-1.dll/' hw/xwin/glx/glshim.c
 # TODO: faire une vraie implémentation
 sed -i '/^os_move_fd/,${
 /^{$/,/^}$/d
@@ -301,6 +590,19 @@ extern void winSetAuthorization(void);' hw/xwin/winmultiwindowwm.c
 sed -i '/^#include "winmultiwindowclass\.h"/a\
 extern void winSelectIcons(HICON * pIcon, HICON * pSmallIcon);\
 extern void winDestroyIcon(HICON hIcon);' hw/xwin/winwin32rootless.c
+# 3 #define dans gl.h de mingw désactivent des déclarations dans glext.h...
+#sed -i '/^#include <GL\/glext\.h>/{
+#i\
+##undef GL_EXT_vertex_array \
+##undef GL_EXT_bgra \
+##undef GL_EXT_paletted_texture
+#a\
+##define GL_DEPTH_STENCIL_MESA 0x8750 \
+##define GL_UNSIGNED_INT_24_8_MESA 0x8751 \
+##define GL_UNSIGNED_INT_8_24_REV_MESA 0x8752 \
+##define GL_UNSIGNED_SHORT_15_1_MESA 0x8753 \
+##define GL_UNSIGNED_SHORT_1_15_REV_MESA 0x8754
+#}' glx/glxserver.h
 make $MAKEOPTS
 make install
 cd ..
