@@ -48,6 +48,13 @@ http://sourceforge.net/projects/expat/files/expat/2.1.0/expat-2.1.0.tar.gz
 EOF
 wget https://github.com/dlfcn-win32/dlfcn-win32/archive/v1.0.0.tar.gz -O dlfcn-win32-1.0.0.tar.gz
 
+# patches Cygwin pour mesa
+git clone http://git.code.sf.net/p/cygwin-ports/mesa cygwin-ports-mesa
+cd cygwin-ports-mesa
+git archive -o ../cygwin-ports-mesa.tar.gz --prefix=cygwin-ports-mesa/ HEAD
+cd ..
+rm -rf cygwin-ports-mesa
+
 # Il faut récupérer le serveur X sur le git, il manque des fichiers dans le tar...
 git clone http://anongit.freedesktop.org/git/xorg/xserver.git
 cd xserver
@@ -64,6 +71,8 @@ wget 'http://cgit.freedesktop.org/xorg/xserver/patch/?id=5071cb7e0ac5f17c48ed7f3
 svn export -r 29735 https://cvs.khronos.org/svn/repos/ogl/trunk/doc/registry/public/api/ khronos-opengl-registry
 tar cvjf khronos-opengl-registry.tar.bz2 khronos-opengl-registry
 rm -rf khronos-opengl-registry
+
+git clone git://git.sv.gnu.org/gnulib.git
 
 
 PREFIX=/opt/xorg
@@ -324,6 +333,9 @@ cd ..
 rm -rf libXxf86vm-1.1.4
 tar xvf libXxf86vm-1.1.4.tar.bz2
 cd libXxf86vm-1.1.4
+# ajout de -no-undefined pour créer une DLL
+sed -i '/^libXxf86vm_la_LDFLAGS =/s/$/ -no-undefined/' src/Makefile.am
+autoreconf -i
 ./configure $CROSS_COMPILE --prefix=$PREFIX --disable-static \
    $([ "$(uname)" = 'Linux' ] && echo "--enable-malloc0returnsnull")
 make $MAKEOPTS
@@ -331,7 +343,7 @@ make install
 cd ..
 
 
-if false; then
+if true; then
 
 # requis par Mesa DRI based
 rm -rf expat-2.1.0
@@ -342,53 +354,65 @@ make $MAKEOPTS
 make install
 cd ..
 
+# extraction des patchs cygwin
+rm -rf cygwin-ports-mesa
+tar xvf cygwin-ports-mesa.tar.gz
+
 rm -rf mesa-10.5.6
 tar xvf mesa-10.5.6.tar.xz
 cd mesa-10.5.6
 
-# TODO à garder?
-sed -i 's/defined(__CYGWIN__)/(& || defined(__MINGW32__))/' \
-  include/GL/{glext.h,wglext.h,glcorearb.h}
-patch include/GL/gl.h <<'EOF'
-diff -Nru a/include/GL/gl.h b/include/GL/gl.h
---- a/include/GL/gl.h   2014-09-12 21:30:32.000000000 +0000
-+++ b/include/GL/gl.h   2015-05-24 07:56:42.286086613 +0000
-@@ -48,7 +48,7 @@
- #  else /* for use with static link lib build of Win32 edition only */
- #    define GLAPI extern
- #  endif /* _STATIC_MESA support */
--#  if defined(__MINGW32__) && defined(GL_NO_STDCALL) || defined(UNDER_CE)  /* The generated DLLs by MingW with STDCALL are not compatible with the ones done by Microsoft's compilers */
-+#  if defined(__MINGW32__) && defined(GL_NO_STDCALL) && !defined(USE_OPENGL32) || defined(UNDER_CE)  /* The generated DLLs by MingW with STDCALL are not compatible with the ones done by Microsoft's compilers */
- #    define GLAPIENTRY 
- #  else
- #    define GLAPIENTRY __stdcall
-@@ -69,7 +69,7 @@
-  * than "WIN32_LEAN_AND_MEAN" may include windows.h before
-  * glut.h or gl.h.
-  */
--#if defined(_WIN32) && !defined(APIENTRY) && !defined(__CYGWIN__)
-+#if defined(_WIN32) && !defined(APIENTRY) && !defined(__CYGWIN__) && !defined(__MINGW32__)
- #ifndef WIN32_LEAN_AND_MEAN
- #define WIN32_LEAN_AND_MEAN 1
- #endif
+# application des patches cygwin
+for f in 0016-Add-Windows-DRI.patch \
+         0017-For-testing-purposes-only-use-Windows-DRI-if-explici.patch \
+         0018-Windows-DRI-fixes.patch \
+         10.3.3-cygwin-shared-llvm.patch \
+         10.3.3-drivers-no-undefined.patch \
+         10.5.4-egl-swrast.patch
+do
+    case "$f" in
+      [0-9][0-9][0-9][0-9]-*)
+        patch -p1 -i ../cygwin-ports-mesa/$f
+        ;;
+      *)
+        patch -p2 -i ../cygwin-ports-mesa/$f
+        ;;
+    esac
+done
+
+
+# implémentation de strndup de GNUlib
+sed -i '/^#include <string\.h>/a\
+static char * strndup (char const *s, size_t n);' src/mesa/drivers/dri/common/xmlconfig.c
+sed '/^#include <config\.h>/d' ../gnulib/lib/strndup.c >> src/mesa/drivers/dri/common/xmlconfig.c
+
+
+# implémentation de random de GNUlib
+sed -i '/^#include <stdlib\.h>/a\
+static long int random(void);\
+static char *initstate(unsigned int seed, char *state, size_t n);\
+static char *setstate(char *state);' src/glx/glxhash.c
+cat >> src/glx/glxhash.c <<'EOF'
+/* From GNULIB */
+#include <stdint.h>
+struct random_data
+{
+  int32_t *fptr;                /* Front pointer.  */
+  int32_t *rptr;                /* Rear pointer.  */
+  int32_t *state;               /* Array of state values.  */
+  int rand_type;                /* Type of random number generator.  */
+  int rand_deg;                 /* Degree of random number generator.  */
+  int rand_sep;                 /* Distance between front and rear.  */
+  int32_t *end_ptr;             /* Pointer behind state table.  */
+};
+static int random_r(struct random_data *, int32_t *);
+static int srandom_r(unsigned int, struct random_data *);
+static int initstate_r(unsigned int, char *, size_t, struct random_data *);
+static int setstate_r(char *, struct random_data *);
+static void srandom(unsigned int);
 EOF
-sed -i '/^#if .* defined(__CYGWIN__)/s/$/ || defined(__MINGW32__)/' include/GL/internal/dri_interface.h
+sed '/^#include <config\.h>/d' ../gnulib/lib/random_r.c ../gnulib/lib/random.c >> src/glx/glxhash.c
 
-
-# Génération swrast_dri.so
-# TODO: patch des entête comme au dessus
-# implémentation de strndup
-sed -i '/^#undef GET_PROGRAM_NAME/a\
-static char *strndup(const char *s, size_t n) { \
-    size_t len = strlen(s); \
-    if (n < len) len = n; \
-    char *res = malloc(len + 1); \
-    if (res != NULL) { \
-        memcpy(res, s, len); \
-        res[len] = '\0'; \
-    } \
-    return res; \
-}' src/mesa/drivers/dri/common/xmlconfig.c
 
 patch src/mesa/drivers/dri/swrast/swrast.c <<'EOF'
 --- src/mesa/drivers/dri/swrast/swrast.c        2015-05-21 12:28:41.000000000 +0000
@@ -419,60 +443,7 @@ patch src/mesa/drivers/dri/swrast/swrast.c <<'EOF'
  #endif
 EOF
 
-# détecter les pthreads même sur Mingw
-sed -i '/^dnl Check for pthreads/,/^\*)/s/mingw/invalid_&/' configure.ac
-NOCONFIGURE=1 \
-./autogen.sh
-
-#TODO réactiver assembleur
-# GLX: Xlib based without Gallium
-./configure $CROSS_COMPILE --prefix=$PREFIX --disable-static \
-  --disable-{gles1,gles2,openvg,dri3,osmesa,gallium-osmesa,egl,xa,gbm,nine,xvmc,vdpau,omx,va,opencl} \
-  --enable-opengl --enable-glx --enable-xlib-glx --disable-dri \
-  --disable-shared-glapi --with-gallium-drivers= --disable-asm
-
-# GLX: Xlib based with Gallium
-./configure $CROSS_COMPILE --prefix=$PREFIX --disable-static \
-  --disable-{gles1,gles2,openvg,dri3,osmesa,gallium-osmesa,egl,xa,gbm,nine,xvmc,vdpau,omx,va,opencl} \
-  --enable-opengl --enable-glx --enable-xlib-glx --disable-dri \
-  --disable-shared-glapi --with-gallium-drivers=swrast --disable-asm
-
-# GLX: DRI based without Gallium
-./configure $CROSS_COMPILE --prefix=$PREFIX --disable-static \
-  --disable-{gles1,gles2,openvg,dri3,osmesa,gallium-osmesa,egl,xa,gbm,nine,xvmc,vdpau,omx,va,opencl} \
-  --enable-opengl --enable-glx --disable-xlib-glx --enable-dri --with-dri-drivers=swrast \
-  --disable-shared-glapi --with-gallium-drivers= --disable-asm
-
-# GLX: DRI based with Gallium
-./configure $CROSS_COMPILE --prefix=$PREFIX --disable-static \
-  --disable-{gles1,gles2,openvg,dri3,osmesa,gallium-osmesa,egl,xa,gbm,nine,xvmc,vdpau,omx,va,opencl} \
-  --enable-opengl --enable-glx --disable-xlib-glx --enable-dri --with-dri-drivers=swrast \
-  --disable-shared-glapi --with-gallium-drivers=swrast --disable-asm
---with-egl-platforms=
---disable-driglx-direct
---enable-glx-tls
-
-patch libtool <<'EOF'
---- libtool     2015-05-23 14:37:02.685980519 +0000
-+++ libtool.new 2015-05-23 15:14:34.625886277 +0000
-@@ -7022,14 +7022,14 @@
-       # we shouldn't force the makefile maintainer to figure out
-       # what system we are compiling for in order to pass an extra
-       # flag for every libtool invocation.
--      # allow_undefined=no
-+      allow_undefined=no
- 
-       # FIXME: Unfortunately, there are problems with the above when trying
-       # to make a dll that has undefined symbols, in which case not
-       # even a static library is built.  For now, we need to specify
-       # -no-undefined on the libtool link line when we can be certain
-       # that all symbols are satisfied, otherwise we get a static library.
--      allow_undefined=yes
-+      # allow_undefined=yes
-       ;;
-     *)
-       allow_undefined=yes
-EOF
+sed -i '/^#define RTLD_/d' src/mesa/main/texcompress_s3tc.c
 
 # utiliser l'émulation pthread
 sed -i '/^u_thread_self(void)/,/^}/s/#ifdef _WIN32/#if 0/' src/mapi/u_thread.h
@@ -483,6 +454,93 @@ sed -i '/^#include <dlfcn\.h>/a\
 #else \
 #include <windows.h>' src/mapi/glapi/glapi_gentable.c
 sed -i '/^#include "util\/hash_table\.h"/a\#include <windows.h>' src/mesa/main/errors.c
+
+# détecter les pthreads même sur Mingw
+sed -i '/^dnl Check for pthreads/,/^\*)/s/mingw/invalid_&/' configure.ac
+
+# créer les symboles EXT
+cat >> src/mesa/drivers/dri/swrast/swrast.c <<'EOF'
+/**
+ * When GLX_INDIRECT_RENDERING is defined, some symbols are missing in
+ * libglapi.a.  We need to define them here.
+ */
+#ifdef GLX_INDIRECT_RENDERING
+
+#define GL_GLEXT_PROTOTYPES
+#include "GL/gl.h"
+#include "glapi/glapi.h"
+#include "glapi/glapitable.h"
+
+#define KEYWORD1 GLAPI 
+#define KEYWORD2 APIENTRY 
+
+#if defined(USE_MGL_NAMESPACE)
+#define NAME(func)  mgl##func
+#else
+#define NAME(func)  gl##func
+#endif
+
+#define DISPATCH(FUNC, ARGS, MESSAGE)           \
+   GET_DISPATCH()->FUNC ARGS
+
+#define RETURN_DISPATCH(FUNC, ARGS, MESSAGE)    \
+   return GET_DISPATCH()->FUNC ARGS
+
+/* skip normal ones */
+#define _GLAPI_SKIP_NORMAL_ENTRY_POINTS
+#include "glapi/glapitemp.h"
+
+#endif /* GLX_INDIRECT_RENDERING */
+EOF
+
+# là ça devient le bazar (3 jours pour arriver à cette chose...)
+sed -i '/^AM_CPPFLAGS =/a\
+        -D_GDI32_ -DBUILD_GL32 -DKHRONOS_DLL_EXPORTS -D_GLAPI_NO_EXPORTS \\' src/mapi/Makefile.am
+sed -i '/^AM_CPPFLAGS =/s/$/ -D_GDI32_ -DBUILD_GL32 -D_GLAPI_NO_EXPORTS/' src/mesa/Makefile.am
+sed -i '/^AM_CFLAGS =/i\
+AM_CPPFLAGS = -D_GDI32_ -DBUILD_GL32 -D_GLAPI_NO_EXPORTS' src/mesa/drivers/dri/swrast/Makefile.am
+sed -i '/^AM_CFLAGS =/i\
+AM_CPPFLAGS = -D_GDI32_ -DBUILD_GL32 -D_GLAPI_NO_EXPORTS' src/glx/Makefile.am
+echo 'AM_CPPFLAGS = -D_GDI32_ -DBUILD_GL32 -D_GLAPI_NO_EXPORTS' >> src/glx/windows/Makefile.am
+
+# et on exporte quelques symboles (pourquoi sont-ils à part?)
+sed -i 's/^\([^ ]*\) \(gl[^_].*(\)/GLAPI \1 GLAPIENTRY \2/' src/glx/indirect.c
+sed -i -e '/^GLboolean$/N' -e 's/^\(GLboolean\n\)\(gl.*(\)/GLAPI \1GLAPIENTRY \2/' src/glx/single2.c
+sed -i 's/^\(extern _X_HIDDEN void\) \(gl_dispatch_stub_\)/\1 GLAPIENTRY \2/' src/glx/indirect.h
+sed -i 's/^\(void\) \(gl_dispatch_stub_\)/\1 GLAPIENTRY \2/' src/glx/indirect.c src/glx/singlepix.c
+
+# TODO: tester si toujours utile
+# modif pas joli pour empêcher l'inclusion de xcb_windefs.h qui provoque une collision de types
+sed -i '$a\
+#ifndef _XCB_WINDEFS_H \
+#define _XCB_WINDEFS_H \
+#endif' src/glx/glxclient.h
+
+# activation de asprintf
+# pas de vérification d'UID
+# conserver les constantes de dlfcn.h
+sed -e '/^#define RTLD_/d' \
+    -e '/^#include <stdarg\.h>/a\
+#define _GNU_SOURCE \
+#include <stdio.h>' \
+    -e 's/geteuid() == getuid()/1/' \
+  -i src/glx/dri_common.c
+
+sed -i '/defined(__CYGWIN__)/s/$/ || defined(__MINGW32__)/' include/GL/internal/dri_interface.h
+sed -i '/^#if defined(_WIN32) \&\& !defined(APIENTRY)/s/$/ \&\& !defined(__MINGW32__)/' \
+  include/GL/{gl.h,glext.h,wglext.h,glcorearb.h}
+
+
+NOCONFIGURE=1 ./autogen.sh
+
+./configure $CROSS_COMPILE --prefix=$PREFIX --disable-static \
+  --disable-{gles1,gles2,openvg,dri3,osmesa,gallium-osmesa,egl,xa,gbm,nine,xvmc,vdpau,omx,va,opencl} \
+  --enable-opengl --enable-glx --disable-xlib-glx --enable-dri --enable-driglx-direct \
+  --with-dri-drivers=swrast --with-gallium-drivers= \
+  --disable-shared-glapi --disable-asm
+# TODO?
+#--with-gallium-drivers=swrast
+#--enable-glx-tls
 
 make $MAKEOPTS
 make install
@@ -546,18 +604,20 @@ rm -rf xorg-server-1.17.1
 tar xvf xorg-server-git-1.17.1.tar.gz
 cd xorg-server-1.17.1
 patch -p1 -i ../xorg-server-support_new_opengl_registry.patch
-NOCONFIGURE=1 \
-./autogen.sh
+# cdecl en interne (voir configure), stdcall pour se linker avec la lib de Windows
+sed -i '/^libnativeGLthunk_la_CFLAGS =/s/$/ -UGL_NO_STDCALL -UBUILD_GL32/' hw/xwin/glx/Makefile.am
+NOCONFIGURE=1 ./autogen.sh
 # le préprocesseur n'aime pas l'entrée standard par défaut, on force sa valeur
 [ "$(uname -o)" = 'Cygwin' ] && sed -i '/^test -n "\$RAWCPP\"/a\RAWCPP="${CPP} -"' configure
 # TODO: --enable-ipv6
 # TODO: voir si xv bien activé
+# TODO: faire du stdcall en interne
 ./configure $CROSS_COMPILE --prefix=$PREFIX --disable-docs --disable-devel-docs \
   --enable-listen-tcp --enable-tcp-transport \
   --enable-xwin --enable-glx --enable-aiglx --enable-xv --enable-windowswm \
   --disable-{xorg,dmx,xvfb,xnest,xquartz,xwayland,glamor,kdrive,xephyr,xfake,xfbdev} \
   --with-khronos-spec-dir=$PWD/../khronos-opengl-registry \
-  GL_CFLAGS=" " GL_LIBS=" "
+  GL_CFLAGS=" " GL_LIBS=" " CPPFLAGS="-DGL_NO_STDCALL -DBUILD_GL32"
 # renommage des libs OpenGL
 sed -i -e 's/cygnativeGLthunk.dll/libnativeGLthunk.dll/' -e 's/cygGL-1.dll/libGL-1.dll/' hw/xwin/glx/glshim.c
 # TODO: faire une vraie implémentation
